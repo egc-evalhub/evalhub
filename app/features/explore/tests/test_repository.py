@@ -201,3 +201,51 @@ def test_tags_combine_with_the_query(test_app, clean_database):
         # "home" alone matches two datasets; the tag narrows them to one.
         assert _titles(repository.filter("home")) == ["Home Banking", "Smart Home"]
         assert _titles(repository.filter("home", tags=["iot"])) == ["Smart Home"]
+
+
+def test_author_filter_matches_name_affiliation_case_insensitively(test_app, clean_database):
+    with test_app.app_context():
+        _seed_corpus()
+        repository = ExploreRepository()
+        assert _titles(repository.filter("", author="bob")) == ["Car Configurator"]
+        assert _titles(repository.filter("", author="  CAROL ")) == ["Home Banking"]
+        assert _titles(repository.filter("", author="some university")) == [
+            "Home Banking",
+            "Car Configurator",
+            "Smart Home",
+        ]
+        assert _titles(repository.filter("", author="nobody")) == []
+
+
+def test_blank_author_filter_is_ignored(test_app, clean_database):
+    with test_app.app_context():
+        _seed_corpus()
+        repository = ExploreRepository()
+        assert _titles(repository.filter("", author="   ")) == _titles(repository.filter(""))
+
+
+def test_date_range_is_inclusive_on_both_ends(test_app, clean_database):
+    with test_app.app_context():
+        _seed_corpus()
+        repository = ExploreRepository()
+        assert _titles(repository.filter("", date_from="2024-02-01")) == ["Home Banking", "Car Configurator"]
+        assert _titles(repository.filter("", date_to="2024-02-01")) == ["Car Configurator", "Smart Home"]
+        assert _titles(repository.filter("", date_from="2024-02-01", date_to="2024-02-01")) == ["Car Configurator"]
+        assert _titles(repository.filter("", date_from="2025-01-01")) == []
+
+
+def test_invalid_dates_are_ignored(test_app, clean_database):
+    with test_app.app_context():
+        _seed_corpus()
+        repository = ExploreRepository()
+        assert _titles(repository.filter("", date_from="not-a-date", date_to="2024-13-40")) == _titles(
+            repository.filter("")
+        )
+
+
+def test_author_date_and_tag_filters_combine(test_app, clean_database):
+    with test_app.app_context():
+        _seed_corpus()
+        repository = ExploreRepository()
+        assert _titles(repository.filter("home", author="alice", date_to="2024-01-31", tags=["iot"])) == ["Smart Home"]
+        assert _titles(repository.filter("home", author="alice", date_from="2024-02-01")) == []
